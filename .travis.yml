@@ -1,0 +1,46 @@
+# Documentation: http://docs.travis-ci.com/user/languages/julia/
+language: julia
+
+sudo: required
+dist: trusty 
+
+os:
+  - linux
+ 
+#  - osx
+
+julia:
+  - 0.4.6
+  - 0.5
+  - nightly
+
+matrix:
+  allow_failures:
+    - julia: nightly
+    - julia: 0.4.6
+
+notifications:
+  email: false
+
+env:
+    - PROSPECT_DEV_MODE=1
+
+script:
+  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+    #  - sudo apt-get update && sudo apt-get upgrade -y && sudo apt-get dist-upgrade -y && sudo apt-get install cmake mpich
+  - sudo apt-get update -qq
+  - sudo apt-get install -qq gcc g++ gfortran cmake libblas-dev libopenblas-dev 
+  - sudo apt-get install -qq libmpich2-dev mpich2 hdf5-tools libhdf5-mpich2-dev 
+  -  #  - sudo apt-get install -qq libboost-all-dev 
+  - julia -e 'Pkg.clone("CompilerTools")'
+  - julia -e 'Pkg.clone("ParallelAccelerator")'
+  - julia -e 'Pkg.build("ParallelAccelerator")'
+    #  - julia -e 'Pkg.clone(pwd()); Pkg.build("HPAT"); Pkg.test("HPAT")'
+  - julia -e 'Pkg.clone(pwd()); Pkg.build("HPAT"); Pkg.test("HPAT")'
+  - julia --depwarn=no examples/pi.jl
+  - mpirun -np 2 julia --depwarn=no examples/pi.jl
+  - julia --depwarn=no generate_data/generate_logistic_regression.jl --instances=10000 --path=/tmp/
+  - julia --depwarn=no examples/logistic_regression.jl --iterations=10 --file=/tmp/logistic_regression.hdf5
+  - mpirun -np 2 julia --depwarn=no examples/logistic_regression.jl --iterations=10 --file=/tmp/logistic_regression.hdf5
+  - julia --depwarn=no examples/kmeans.jl --iterations=10 --file=/tmp/logistic_regression.hdf5
+  - mpirun -np 2 julia --depwarn=no examples/kmeans.jl --iterations=10 --file=/tmp/logistic_regression.hdf5
